@@ -704,7 +704,10 @@ function cargar(){
     carpetas=d.carpetas||[];
     clientes=d.clientes||[];
     cancelados=d.cancelados||[];
-  }catch(e){carpetas=[];clientes=[];}
+  }catch(e){carpetas=[];clientes=[];cancelados=[];}
+  // limpiar clientes sin carpeta válida
+  const ids=new Set(carpetas.map(c=>c.id));
+  clientes=clientes.filter(c=>ids.has(c.carpetaId));
   salvar();
 }
 function salvar(){
