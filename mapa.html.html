@@ -74,6 +74,13 @@ html,body{width:100%;height:100%;overflow:hidden;font-family:'Roboto','Segoe UI'
 .dr-add-folder{display:flex;align-items:center;gap:14px;padding:14px 16px;cursor:pointer;font-size:14px;color:#a855f7;border-top:1px solid #5b21b6}
 .dr-add-folder:active{background:#111}
 .dr-bottom{margin-top:auto;border-top:1px solid #5b21b6}
+#dr-cancelados-btn{display:flex;align-items:center;gap:14px;padding:13px 16px;cursor:pointer;font-size:14px;color:#f87171;border-top:2px solid #3b0764;margin-top:auto}
+#dr-cancelados-btn:active{background:#1a0a0a}
+.cancelado-item{display:flex;align-items:center;gap:10px;padding:12px 16px;border-bottom:1px solid #2a1a4a}
+.cancelado-nombre{flex:1;font-size:14px;color:#f0f0f0}
+.cancelado-sub{font-size:12px;color:#888}
+.btn-reactivar{background:#1a2a1a;border:1px solid #39ff14;border-radius:6px;color:#39ff14;font-size:11px;padding:4px 8px;cursor:pointer}
+.btn-eliminar-def{background:#2a0a0a;border:1px solid #f87171;border-radius:6px;color:#f87171;font-size:11px;padding:4px 8px;cursor:pointer;margin-left:4px}
 .dr-item{display:flex;align-items:center;gap:14px;padding:13px 16px;cursor:pointer;font-size:14px;color:#cccccc;border-bottom:1px solid #3b0764}
 .dr-item:active{background:#111}
 .dr-item svg{color:#aaaaaa;flex-shrink:0}
@@ -397,6 +404,10 @@ input[type=file]#foto-input{display:none}
       Acerca de VexTel Mapa
     </div>
   </div>
+  <div id="dr-cancelados-btn" onclick="abrirCancelados()">
+    <svg width="18" height="18" fill="none" stroke="#f87171" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+    Clientes cancelados
+  </div>
 </div>
 
 <!-- FORM CARPETA (dialog Material) -->
@@ -644,7 +655,7 @@ const TIPO_ICONOS={
   'caja-1x16':    `<rect x="1" y="1" width="44" height="25" rx="2" fill="#000" stroke="BGCOLOR" stroke-width="2"/><text x="23" y="19" text-anchor="middle" font-size="12" font-weight="bold" fill="BGCOLOR" font-family="sans-serif">1×16</text>`,
 };
 
-let carpetas=[], clientes=[], editId=null, activo=null, marcadores={};
+let carpetas=[], clientes=[], cancelados=[], editId=null, activo=null, marcadores={};
 let colocandoPin=false, pendingCoord=null, ultimaCarpetaId=null, editColor=null;
 let moverActivoId=null;
 let tipoActivo='cliente', colorActivo='#00d4ff';
@@ -692,26 +703,12 @@ function cargar(){
     const d=JSON.parse(localStorage.getItem('wisp_v5')||'{}');
     carpetas=d.carpetas||[];
     clientes=d.clientes||[];
+    cancelados=d.cancelados||[];
   }catch(e){carpetas=[];clientes=[];}
-
-  if(!carpetas.length){
-    carpetas=[
-      {id:'c1',nombre:'Zona Norte',visible:true},
-      {id:'c2',nombre:'Zona Sur',color:'#7c3aed',visible:true},
-      {id:'c3',nombre:'Zona Centro',visible:true},
-    ];
-  }
-  if(!clientes.length){
-    clientes=[
-      {id:1001,nombre:'Carlos Ramírez',tel:'4151234567',carpetaId:'c1',nota:'Plan 20MB',lat:20.931,lng:-100.746},
-      {id:1002,nombre:'María López',tel:'4159876543',carpetaId:'c2',nota:'',lat:20.909,lng:-100.737},
-      {id:1003,nombre:'Juan Torres',tel:'4153456781',carpetaId:'c3',nota:'Plan 10MB',lat:20.921,lng:-100.753},
-    ];
-  }
   salvar();
 }
 function salvar(){
-  localStorage.setItem('wisp_v5',JSON.stringify({carpetas,clientes}));
+  localStorage.setItem('wisp_v5',JSON.stringify({carpetas,clientes,cancelados}));
 }
 
 // ── HISTORIAL DESHACER/REHACER ──
@@ -989,14 +986,14 @@ function eliminarCarpeta(){
   if(!carp)return;
   const n=clientes.filter(c=>c.carpetaId===editCarpetaId).length;
   const msg=n>0
-    ? '¿Eliminar carpeta "'+carp.nombre+'"? Tiene '+n+' marcador(es) que quedarán sin carpeta.'
+    ? '¿Eliminar carpeta "'+carp.nombre+'"? Se eliminarán también sus '+n+' marcador(es).'
     : '¿Eliminar carpeta "'+carp.nombre+'"?';
   if(!confirm(msg))return;
-  // mover marcadores a sin carpeta
-  clientes.filter(c=>c.carpetaId===editCarpetaId).forEach(c=>{c.carpetaId='';});
+  // quitar pines del mapa y eliminar clientes de esta carpeta
+  clientes.filter(c=>c.carpetaId===editCarpetaId).forEach(c=>quitarM(c.id));
+  clientes=clientes.filter(c=>c.carpetaId!==editCarpetaId);
   carpetas=carpetas.filter(c=>c.id!==editCarpetaId);
   salvar();
-  renderTodos();
   renderDrawer();
   cerrarFormCarpeta();
   toast('Carpeta eliminada');
@@ -1307,9 +1304,20 @@ function enviarWA(){cerrarMore();if(!activo?.tel)return toast('Sin teléfono');w
 function llamarCliente(){cerrarMore();if(!activo?.tel)return toast('Sin teléfono');window.open('tel:'+activo.tel);}
 function eliminarActivo(){
   cerrarMore();if(!activo)return;
-  if(!confirm('¿Eliminar a '+activo.nombre+'?'))return;
-  const id=activo.id;clientes=clientes.filter(c=>c.id!==id);salvar();guardarHistorial();
-  quitarM(id);cerrarInfowin();toast('Eliminado');
+  const c=activo;
+  if(c.tipo==='cliente'){
+    const op=confirm('¿Mover a cancelados?\n\nAcepta = Cancelados\nCancela = Eliminar definitivo');
+    if(op){
+      cancelados.push({...c,fechaCancelado:Date.now()});
+      clientes=clientes.filter(x=>x.id!==c.id);
+      salvar();guardarHistorial();
+      quitarM(c.id);cerrarInfowin();toast('Movido a cancelados');
+      return;
+    }
+  }
+  if(!confirm('¿Eliminar definitivamente a '+c.nombre+'?'))return;
+  clientes=clientes.filter(x=>x.id!==c.id);salvar();guardarHistorial();
+  quitarM(c.id);cerrarInfowin();toast('Eliminado');
 }
 
 // ══════════════════════════════════════════
@@ -1635,6 +1643,52 @@ function irUbicacion(){
       zIndexOffset:2000
     }).addTo(mapa);
   },()=>toast('No se pudo obtener ubicación'));
+}
+function abrirCancelados(){
+  cerrarDrawer();
+  const overlay=document.createElement('div');
+  overlay.id='cancelados-overlay';
+  overlay.style.cssText='position:fixed;inset:0;z-index:1100;background:#0a0a0a;display:flex;flex-direction:column';
+  const bar=`<div style="display:flex;align-items:center;height:52px;background:#0a0a0a;border-bottom:2px solid #f87171;padding:0 4px;flex-shrink:0">
+    <button onclick="document.getElementById('cancelados-overlay').remove()" style="width:46px;height:52px;display:flex;align-items:center;justify-content:center;background:none;border:none;cursor:pointer;color:#aaa">
+      <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+    </button>
+    <span style="flex:1;font-size:17px;font-weight:500;color:#f87171;padding:0 8px">Clientes cancelados</span>
+  </div>`;
+  const lista=cancelados.length===0
+    ? '<div style="padding:32px;text-align:center;color:#555;font-size:14px">Sin clientes cancelados</div>'
+    : cancelados.map(cl=>`
+      <div class="cancelado-item">
+        <div style="flex:1;min-width:0">
+          <div class="cancelado-nombre">${cl.nombre}</div>
+          <div class="cancelado-sub">${cl.tel||''}${cl.nota?' · '+cl.nota:''}</div>
+        </div>
+        <button class="btn-reactivar" onclick="reactivarCliente(${cl.id})">Reactivar</button>
+        <button class="btn-eliminar-def" onclick="eliminarDefinitivo(${cl.id})">Eliminar</button>
+      </div>`).join('');
+  overlay.innerHTML=bar+'<div style="flex:1;overflow-y:auto">'+lista+'</div>';
+  document.body.appendChild(overlay);
+}
+function reactivarCliente(id){
+  const cl=cancelados.find(x=>x.id===id);
+  if(!cl)return;
+  cancelados=cancelados.filter(x=>x.id!==id);
+  clientes.push(cl);
+  salvar();
+  const carp=getCarpeta(cl.carpetaId);
+  if(carp.visible) addM(cl);
+  document.getElementById('cancelados-overlay')?.remove();
+  toast(cl.nombre+' reactivado');
+}
+function eliminarDefinitivo(id){
+  const cl=cancelados.find(x=>x.id===id);
+  if(!cl)return;
+  if(!confirm('¿Eliminar definitivamente a '+cl.nombre+'? No se puede recuperar.'))return;
+  cancelados=cancelados.filter(x=>x.id!==id);
+  salvar();
+  document.getElementById('cancelados-overlay')?.remove();
+  abrirCancelados();
+  toast('Eliminado definitivamente');
 }
 function abrirAcerca(){
   cerrarDrawer();
