@@ -254,7 +254,7 @@ input[type=file]#foto-input{display:none}
 .fc-calle-size label{font-size:12px;color:#a855f7}
 #fc-calle-size-val{font-size:13px;color:#f0f0f0;min-width:24px;text-align:center}
 #fc-calle-preview{text-align:center;padding:8px;background:#111;border-radius:4px;margin-bottom:16px;color:#a855f7;font-weight:700;border:1px solid #3b0764}
-.etiqueta-calle{background:rgba(0,0,0,0.82);border:1px solid rgba(168,85,247,0.7);border-radius:4px;padding:2px 8px;white-space:nowrap;color:#a855f7;font-weight:700;pointer-events:auto;cursor:pointer;font-family:sans-serif;letter-spacing:.03em}
+.etiqueta-calle{background:#fff;border:1.5px solid #000;border-radius:3px;padding:1px 7px;white-space:nowrap;color:#000;font-weight:700;pointer-events:auto;cursor:pointer;font-family:sans-serif;letter-spacing:.03em;box-shadow:0 1px 3px rgba(0,0,0,.4)}
 
 /* TOAST */
 #toast{position:fixed;bottom:72px;left:50%;transform:translateX(-50%);background:#1a1a1a;border:1px solid #a855f7;border-radius:20px;padding:10px 18px;font-size:14px;color:#fff;opacity:0;transition:opacity .3s;z-index:1400;white-space:nowrap;pointer-events:none;box-shadow:0 0 4px #a855f7,0 0 10px #a855f7,0 0 20px rgba(168,85,247,.7)}
@@ -613,13 +613,7 @@ input[type=file]#foto-input{display:none}
   <div id="form-calle">
     <h3>Nombrar calle</h3>
     <input id="fc-calle-input" placeholder="Nombre de la calle…" autocomplete="off" oninput="actualizarPrevCalle()"/>
-    <div class="fc-calle-size">
-      <label>Tamaño</label>
-      <button onclick="cambiarSizeCalle(-1)" style="background:#1a0a2a;border:1px solid #a855f7;border-radius:4px;color:#a855f7;width:28px;height:28px;cursor:pointer;font-size:16px">−</button>
-      <span id="fc-calle-size-val">14</span>
-      <button onclick="cambiarSizeCalle(1)" style="background:#1a0a2a;border:1px solid #a855f7;border-radius:4px;color:#a855f7;width:28px;height:28px;cursor:pointer;font-size:16px">+</button>
-    </div>
-    <div id="fc-calle-preview" style="font-size:14px">Nombre de la calle</div>
+<div id="fc-calle-preview" style="font-size:14px;background:#fff;border:1.5px solid #000;border-radius:3px;padding:2px 10px;display:inline-block;color:#000;font-weight:700;font-family:sans-serif">Nombre de la calle</div>
     <div style="display:flex;gap:8px;justify-content:flex-end">
       <button onclick="cerrarFormCalle()" style="background:none;border:none;color:#888;font-size:14px;padding:8px 12px;cursor:pointer">Cancelar</button>
       <button onclick="confirmarNombreCalle()" style="background:none;border:none;color:#a855f7;font-size:14px;font-weight:700;padding:8px 12px;cursor:pointer">Colocar</button>
@@ -1755,26 +1749,60 @@ function salvarEtiquetas(){
 function addEtiqueta(e){
   const div=document.createElement('div');
   div.className='etiqueta-calle';
-  div.style.fontSize=e.size+'px';
+  div.style.fontSize=(e.size||14)+'px';
   div.textContent=e.nombre;
-  div.title='Toca para eliminar';
-  div.onclick=()=>{
-    if(confirm('¿Eliminar etiqueta "'+e.nombre+'"?')){
-      etiquetas=etiquetas.filter(x=>x.id!==e.id);
-      salvarEtiquetas();
-      marker.remove();
-    }
-  };
-  const marker=L.marker([e.lat,e.lng],{
+  let marker;
+  div.onclick=()=>abrirEditorEtiqueta(e,marker);
+  marker=L.marker([e.lat,e.lng],{
     icon:L.divIcon({html:div,className:'',iconSize:[0,0],iconAnchor:[0,0]}),
     zIndexOffset:500
   }).addTo(mapa);
+  e._marker=marker;
+}
+
+function abrirEditorEtiqueta(e,marker){
+  const viejo=document.getElementById('editor-etiqueta');
+  if(viejo) viejo.remove();
+  const ed=document.createElement('div');
+  ed.id='editor-etiqueta';
+  ed.style.cssText='position:fixed;bottom:80px;left:50%;transform:translateX(-50%);z-index:1300;background:#0a0a0a;border:2px solid #a855f7;border-radius:12px;padding:12px 16px;display:flex;align-items:center;gap:10px;box-shadow:0 0 10px rgba(168,85,247,.6)';
+  ed.innerHTML=`
+    <span style="color:#f0f0f0;font-size:13px;max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${e.nombre}</span>
+    <button onclick="ajustarEtiqueta(${e.id},-1)" style="background:#1a0a2a;border:1px solid #a855f7;border-radius:4px;color:#a855f7;width:30px;height:30px;cursor:pointer;font-size:18px;line-height:1">−</button>
+    <span id="ee-size-${e.id}" style="color:#f0f0f0;font-size:13px;min-width:20px;text-align:center">${e.size||14}</span>
+    <button onclick="ajustarEtiqueta(${e.id},1)" style="background:#1a0a2a;border:1px solid #a855f7;border-radius:4px;color:#a855f7;width:30px;height:30px;cursor:pointer;font-size:18px;line-height:1">+</button>
+    <button onclick="eliminarEtiqueta(${e.id})" style="background:#2a0a0a;border:1px solid #f87171;border-radius:4px;color:#f87171;width:30px;height:30px;cursor:pointer;font-size:16px;line-height:1">✕</button>
+    <button onclick="document.getElementById('editor-etiqueta').remove()" style="background:none;border:none;color:#555;cursor:pointer;font-size:18px;padding:0 4px">✓</button>`;
+  document.body.appendChild(ed);
+}
+
+function ajustarEtiqueta(id,delta){
+  const e=etiquetas.find(x=>x.id===id);
+  if(!e)return;
+  e.size=Math.max(10,Math.min(28,(e.size||14)+delta));
+  document.getElementById('ee-size-'+id).textContent=e.size;
+  // actualizar marcador en mapa
+  if(e._marker){
+    e._marker.remove();
+    delete e._marker;
+  }
+  addEtiqueta(e);
+  salvarEtiquetas();
+}
+
+function eliminarEtiqueta(id){
+  const e=etiquetas.find(x=>x.id===id);
+  if(!e)return;
+  if(!confirm('¿Eliminar etiqueta "'+e.nombre+'"?'))return;
+  if(e._marker) e._marker.remove();
+  etiquetas=etiquetas.filter(x=>x.id!==id);
+  salvarEtiquetas();
+  document.getElementById('editor-etiqueta')?.remove();
 }
 function iniciarEtiquetaCalle(){
   sizeCalle=14;
-  document.getElementById('fc-calle-size-val').textContent=sizeCalle;
   document.getElementById('fc-calle-input').value='';
-  document.getElementById('fc-calle-preview').style.fontSize=sizeCalle+'px';
+  document.getElementById('fc-calle-preview').style.fontSize='14px';
   document.getElementById('fc-calle-preview').textContent='Nombre de la calle';
   document.getElementById('form-calle-bg').classList.add('on');
   setTimeout(()=>document.getElementById('fc-calle-input').focus(),100);
@@ -1785,11 +1813,6 @@ function cerrarFormCalle(){
 function actualizarPrevCalle(){
   const val=document.getElementById('fc-calle-input').value||'Nombre de la calle';
   document.getElementById('fc-calle-preview').textContent=val;
-}
-function cambiarSizeCalle(delta){
-  sizeCalle=Math.max(10,Math.min(24,sizeCalle+delta));
-  document.getElementById('fc-calle-size-val').textContent=sizeCalle;
-  document.getElementById('fc-calle-preview').style.fontSize=sizeCalle+'px';
 }
 function confirmarNombreCalle(){
   const nombre=document.getElementById('fc-calle-input').value.trim();
