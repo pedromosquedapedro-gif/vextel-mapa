@@ -34,7 +34,7 @@ html,body{width:100%;height:100%;overflow:hidden;font-family:'Roboto','Segoe UI'
 #tipos-bar{position:fixed;top:52px;left:0;right:0;z-index:999;background:#0a0a0a;border-bottom:1px solid #5b21b6;display:flex;overflow-x:auto;scrollbar-width:none;box-shadow:0 2px 4px rgba(0,0,0,.1)}
 #tipos-bar::-webkit-scrollbar{display:none}
 #tipos-bar-wrap{position:fixed;top:52px;left:0;right:0;z-index:999}
-#tipos-scroll-hint{position:absolute;right:0;top:0;bottom:0;width:32px;background:linear-gradient(to right,transparent,#0a0a0a);pointer-events:none;display:flex;align-items:center;justify-content:flex-end;padding-right:4px;z-index:1}
+#tipos-scroll-hint{position:fixed;top:52px;right:0;height:44px;width:40px;background:linear-gradient(to right,transparent,#0a0a0a);pointer-events:none;display:flex;align-items:center;justify-content:flex-end;padding-right:6px;z-index:1000}
 #tipos-scroll-hint svg{color:#a855f7;opacity:.9}
 .tipo-btn{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;padding:7px 14px;cursor:pointer;border:none;background:none;flex-shrink:0;border-bottom:3px solid transparent;transition:border-color .15s}
 .tipo-btn.sel{border-bottom-color:#a855f7;text-shadow:0 0 8px #a855f7}
@@ -276,11 +276,9 @@ input[type=file]#foto-input{display:none}
 </div>
 
 <!-- BARRA TIPOS -->
-<div style="position:fixed;top:52px;left:0;right:0;z-index:999">
-  <div id="tipos-bar"></div>
-  <div id="tipos-scroll-hint">
-    <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg>
-  </div>
+<div id="tipos-bar"></div>
+<div id="tipos-scroll-hint">
+  <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg>
 </div>
 <button id="btn-loc" onclick="irUbicacion()">
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#555" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>
